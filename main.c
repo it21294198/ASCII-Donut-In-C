@@ -80,6 +80,15 @@ Step 7 -> lighting
         - Surface sideways -> brightness = medium
         - Surface facing away -> brightness = dark
 Step 8 -> rotation
+    - So every frame slightly rotate the donut.
+    - Imagine top-down view for (x,z)
+    - Rotate around Y-axis by angle A:
+        - x' = x*cos(A) - z*sin(A)
+        - z' = x*sin(A) + z*cos(A)
+    - Just rotate does not move the donut.
+    - Just changing coordinates to simulate rotation.
+    - To animation uses infinite while(1) loop.
+    - Need to clear the buffers every frame, otherwise old frames remain.
 Step 9 -> animation
 */
 
@@ -88,6 +97,7 @@ Step 9 -> animation
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 
 #define WIDTH 80
 #define HEIGHT 22
@@ -97,70 +107,87 @@ float zbuffer[WIDTH * HEIGHT];
 
 int main()
 {
-    memset(screen, ' ', WIDTH * HEIGHT);
-    memset(zbuffer, 0, sizeof(zbuffer));
-
-    int centerX = WIDTH / 2;
-    int centerY = HEIGHT / 2;
-
-    float R1 = 4;  // tube radius
-    float R2 = 10; // donut radius
-
-    float K1 = 30;
+    float A = 0;
 
     char shades[] = ".,-~:;=!*#$@";
 
-    for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
+    while (1)
     {
-        for (float phi = 0; phi < 2 * M_PI; phi += 0.1)
+
+        memset(screen, ' ', WIDTH * HEIGHT);
+        memset(zbuffer, 0, sizeof(zbuffer));
+
+        int centerX = WIDTH / 2;
+        int centerY = HEIGHT / 2;
+
+        float R1 = 4;  // tube radius
+        float R2 = 10; // donut radius
+
+        float K1 = 30;
+
+        for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
         {
-            // donut point in 3D
-            float x = (R2 + R1 * cos(theta)) * cos(phi);
-            float y = R1 * sin(theta);
-            float z = (R2 + R1 * cos(theta)) * sin(phi);
-
-            // move donut away from camera
-            z += 20;
-
-            // perspective projection
-            float ooz = 1 / z;
-
-            // screenX = centerX + K1(z/x)
-            int screenX = centerX + K1 * ooz * x;
-            int screenY = centerY + K1 * ooz * y;
-
-            // bounds check
-            if (screenX >= 0 && screenX < WIDTH &&
-                screenY >= 0 && screenY < HEIGHT)
+            for (float phi = 0; phi < 2 * M_PI; phi += 0.1)
             {
-                // screen[screenX + screenY * WIDTH] = '@';
-                int index = screenX + screenY * WIDTH;
+                // donut point in 3D
+                float x = (R2 + R1 * cos(theta)) * cos(phi);
+                float y = R1 * sin(theta);
+                float z = (R2 + R1 * cos(theta)) * sin(phi);
 
-                // depth test
-                if (ooz > zbuffer[index])
+                // ROTATE AROUND Y AXIS
+                float rotatedX = x * cos(A) - z * sin(A);
+                float rotatedZ = x * sin(A) + z * cos(A);
+
+                // move away from camera
+                rotatedZ += 20;
+
+                // perspective
+                float ooz = 1 / rotatedZ;
+
+                // screenX = centerX + K1(z/x)
+                int screenX = centerX + K1 * ooz * rotatedX;
+                int screenY = centerY + K1 * ooz * y;
+
+                // bounds check
+                if (screenX >= 0 && screenX < WIDTH &&
+                    screenY >= 0 && screenY < HEIGHT)
                 {
-                    zbuffer[index] = ooz;
+                    // screen[screenX + screenY * WIDTH] = '@';
+                    int index = screenX + screenY * WIDTH;
 
-                    // fake brightness
-                    int brightness = (sin(theta) + 1) * 5;
-                    screen[index] = shades[brightness];
+                    // depth test
+                    if (ooz > zbuffer[index])
+                    {
+                        zbuffer[index] = ooz;
 
-                    // for Real lighting uses : surface normal * light vector
+                        // fake brightness
+                        int brightness = (sin(theta) + 1) * 5;
+                        screen[index] = shades[brightness];
+
+                        // for Real lighting uses : surface normal * light vector
+                    }
                 }
             }
         }
-    }
 
-    // print screen
-    for (int i = 0; i < WIDTH * HEIGHT; i++)
-    {
-        putchar(screen[i]);
+        // clear terminal
+        printf("\x1b[H");
 
-        if ((i + 1) % WIDTH == 0)
+        // print screen
+        for (int i = 0; i < WIDTH * HEIGHT; i++)
         {
-            putchar('\n');
-        }
-    }
+            putchar(screen[i]);
 
+            if ((i + 1) % WIDTH == 0)
+            {
+                putchar('\n');
+            }
+        }
+        // increase rotation
+        A += 0.04;
+
+        // controls animation speed.
+        usleep(30000);
+    }
     return 0;
 }
