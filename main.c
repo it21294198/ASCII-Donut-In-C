@@ -11,12 +11,19 @@ Step 1 -> screen buffer
     - Think of it like pixels.
     - But instead of pixels `@,#,.,space` stored characters.
     - Suppose terminal size: 80x22
+Step 2 -> draw a point
     - Need to understand:(0,0) top-left (x -> horizontal, y -> vertical)
     - Convert (x,y) into array index
     - Uses: index = x + y × WIDTH
     - Draw a single point : screen[40 + 10 * WIDTH] = '@';
-Step 2 -> draw a point
 Step 3 -> draw a circle
+    - A circle is created by moving around angles. The magic formulas are: x = r * cos(θ), y = r * sin(θ)
+    - As theta(θ) changes: 0 → 2π the point moves around a circle.
+    - cos() and sin() return values between: -1 and +1
+    - scale the circle by multiplying the radius (r) to the cos() and sin() values.
+    - x = radius * cos(theta); y = radius * sin(theta);
+    - shift the circle to screen center. Terminal coordinates: (0,0) start at TOP LEFT.
+    - Formula for Circle coordinates : x = centerX + r*cos(θ), y = centerY +r*sin(θ)
 Step 4 -> create donut points
 Step 5 -> projection
 Step 6 -> rotation
@@ -35,10 +42,22 @@ int main()
     // fill screen with spaces, so terminal becomes blank.
     memset(screen, ' ', WIDTH * HEIGHT);
 
-    // Draw a single point
-    screen[40 + 10 * WIDTH] = '@';
+    // circle parameters
+    int centerX = WIDTH / 2;
+    int centerY = HEIGHT / 2;
 
-    // add newline at end of each row
+    int radius = 8;
+
+    // move around circle
+    for (float theta = 0; theta < 2 * M_PI; theta += 0.05)
+    {
+        int x = centerX + radius * cos(theta);
+        int y = centerY + radius * sin(theta);
+
+        screen[x + y * WIDTH] = '@';
+    }
+
+    // print characters on screen
     for (int i = 0; i < WIDTH * HEIGHT; i++)
     {
         putchar(screen[i]);
