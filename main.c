@@ -69,7 +69,7 @@ Step 7 -> lighting
         +----------+--------------+
     - In donut.c , N = calculates brightness. Then: ".,-~:;=!*#$@"[N] , selects the character.
     - Brightness depends on theta, just to understand shading.
-    - This works : sin(theta)
+    - This works for now using : sin(theta)
         - returns:
             - -1 → +1
             - add 1 : 0 → 2
@@ -89,7 +89,36 @@ Step 8 -> rotation
     - Just changing coordinates to simulate rotation.
     - To animation uses infinite while(1) loop.
     - Need to clear the buffers every frame, otherwise old frames remain.
-Step 9 -> animation
+Step 9 -> animation with real lighting
+    - Simple meaning of dot product
+        - The dot product measures: how much two directions point the same way
+    - Dot product formula : a⋅b = ax*bx + ay*by + az*bz
+    +--------+-------------------+
+    | Vector |      Meaning      |
+    +--------+-------------------+
+    | normal | surface direction |
+    +--------+-------------------+
+    | light  | light direction   |
+    +--------+-------------------+
+    - Surface normal on the donut
+        - The donut surface points outward.
+            - inside tube -> inward
+            - outside tube -> outward
+    - Define a light direction
+        - Suppose light comes from: top-right-front
+        - define as:
+            float lightX = 0;
+            float lightY = 1;
+            float lightZ = -1;
+    - Surface normal for the torus:
+        normalX = cos(theta) * cos(phi);
+        normalY = sin(theta);
+        normalZ = cos(theta) * sin(phi);
+    - These describe: which way surface faces
+    - Calculate brightness using dot product
+        - brightness = nx*lx + ny*ly + nz*lz
+    - values usually: -1 → +1
+    - Negative values mean, surface faces away : usually ignore those points.
 */
 
 #define _USE_MATH_DEFINES
@@ -139,7 +168,7 @@ int main()
                 float rotatedZ = x * sin(A) + z * cos(A);
 
                 // move away from camera
-                rotatedZ += 20;
+                rotatedZ += 30;
 
                 // perspective
                 float ooz = 1 / rotatedZ;
@@ -159,12 +188,27 @@ int main()
                     if (ooz > zbuffer[index])
                     {
                         zbuffer[index] = ooz;
+                        // calculate brightness with surface normal
+                        float normalX = cos(theta) * cos(phi);
+                        float normalY = sin(theta);
+                        float normalZ = cos(theta) * sin(phi);
 
-                        // fake brightness
-                        int brightness = (sin(theta) + 1) * 5;
-                        screen[index] = shades[brightness];
+                        // light direction
+                        float lightX = 0;
+                        float lightY = 1;
+                        float lightZ = -1;
 
-                        // for Real lighting uses : surface normal * light vector
+                        // dot product
+                        float brightness =
+                            normalX * lightX +
+                            normalY * lightY +
+                            normalZ * lightZ;
+
+                        if (brightness > 0)
+                        {
+                            int shadeIndex = brightness * 8;
+                            screen[index] = shades[shadeIndex];
+                        }
                     }
                 }
             }
