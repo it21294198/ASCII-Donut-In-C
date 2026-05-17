@@ -119,6 +119,9 @@ Step 9 -> animation with real lighting
         - brightness = nx*lx + ny*ly + nz*lz
     - values usually: -1 → +1
     - Negative values mean, surface faces away : usually ignore those points.
+Step 10 -> final touches
+    - Add another rotation around Z-axis by angle B
+    - Make values reusable variables, to avoid recalculating repeatedly.
 */
 
 #define _USE_MATH_DEFINES
@@ -131,107 +134,262 @@ Step 9 -> animation with real lighting
 #define WIDTH 80
 #define HEIGHT 22
 
+/*
+    screen[]  -> stores ASCII characters
+    zbuffer[] -> stores depth values (1/z)
+*/
 char screen[WIDTH * HEIGHT];
 float zbuffer[WIDTH * HEIGHT];
 
 int main()
 {
+    /*
+        A -> rotation angle around X-axis
+        B -> rotation angle around Z-axis
+    */
     float A = 0;
+    float B = 0;
 
+    /*
+        ASCII brightness map
+
+        Dark -----------------> Bright
+          .,-~:;=!*#$@
+    */
     char shades[] = ".,-~:;=!*#$@";
+
+    /*
+        Clear terminal screen once
+    */
+    printf("\x1b[2J");
 
     while (1)
     {
-
+        /*
+            Clear frame buffers
+        */
         memset(screen, ' ', WIDTH * HEIGHT);
         memset(zbuffer, 0, sizeof(zbuffer));
 
+        /*
+            Screen center
+        */
         int centerX = WIDTH / 2;
         int centerY = HEIGHT / 2;
 
-        float R1 = 4;  // tube radius
-        float R2 = 10; // donut radius
+        /*
+            Torus dimensions
 
-        float K1 = 30;
+            R1 -> tube radius
+            R2 -> donut radius
+        */
+        float R1 = 1;
+        float R2 = 2;
 
-        for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
+        /*
+            K2 -> camera distance
+
+            Moves donut away from camera
+            so z never becomes 0
+        */
+        float K2 = 5;
+
+        /*
+            K1 -> projection scaling factor
+
+            Controls donut size on screen
+        */
+        float K1 = WIDTH * K2 * 3 / (8 * (R1 + R2));
+
+        /*
+            theta -> angle around tube
+
+            0 -> 2PI
+        */
+        for (float theta = 0; theta < 2 * M_PI; theta += 0.07)
         {
-            for (float phi = 0; phi < 2 * M_PI; phi += 0.1)
+            /*
+                phi -> angle around entire donut
+            */
+            for (float phi = 0; phi < 2 * M_PI; phi += 0.02)
             {
-                // donut point in 3D
-                float x = (R2 + R1 * cos(theta)) * cos(phi);
-                float y = R1 * sin(theta);
-                float z = (R2 + R1 * cos(theta)) * sin(phi);
+                /*
+                    Precompute trig values
 
-                // ROTATE AROUND Y AXIS
-                float rotatedX = x * cos(A) - z * sin(A);
-                float rotatedZ = x * sin(A) + z * cos(A);
+                    Faster than recalculating repeatedly
+                */
+                float cosTheta = cos(theta);
+                float sinTheta = sin(theta);
 
-                // move away from camera
-                rotatedZ += 30;
+                float cosPhi = cos(phi);
+                float sinPhi = sin(phi);
 
-                // perspective
-                float ooz = 1 / rotatedZ;
+                float cosA = cos(A);
+                float sinA = sin(A);
 
-                // screenX = centerX + K1(z/x)
-                int screenX = centerX + K1 * ooz * rotatedX;
-                int screenY = centerY + K1 * ooz * y;
+                float cosB = cos(B);
+                float sinB = sin(B);
 
-                // bounds check
-                if (screenX >= 0 && screenX < WIDTH &&
-                    screenY >= 0 && screenY < HEIGHT)
+                /*
+                    Small circle coordinates
+
+                    circleX -> horizontal tube position
+                    circleY -> vertical tube position
+
+                    x = R2 + R1*cos(theta)
+                    y = R1*sin(theta)
+                */
+                float circleX = R2 + R1 * cosTheta;
+                float circleY = R1 * sinTheta;
+
+                /*
+                    =================================================
+                    3D ROTATION EQUATIONS
+                    =================================================
+
+                    Rotates torus using angles A and B
+
+                    Final rotated coordinates:
+                        x
+                        y
+                        z
+                */
+
+                float x =
+                    circleX * (cosB * cosPhi + sinA * sinB * sinPhi) - circleY * cosA * sinB;
+
+                float y =
+                    circleX * (sinB * cosPhi - sinA * cosB * sinPhi) + circleY * cosA * cosB;
+
+                float z =
+                    K2 + cosA * circleX * sinPhi + circleY * sinA;
+
+                /*
+                    =================================================
+                    PERSPECTIVE PROJECTION
+                    =================================================
+
+                    ooz -> One Over Z
+
+                    Near object:
+                        large ooz
+
+                    Far object:
+                        small ooz
+                */
+                float ooz = 1 / z;
+
+                /*
+                    =================================================
+                    3D -> 2D SCREEN CONVERSION
+                    =================================================
+
+                    screenX = centerX + K1 * x / z
+                    screenY = centerY - K1 * y / z
+
+                    y uses 0.5 scaling because terminal
+                    characters are taller than wide
+                */
+                int screenX =
+                    (int)(centerX + K1 * ooz * x);
+
+                int screenY =
+                    (int)(centerY - K1 * ooz * y * 0.5);
+
+                /*
+                    Convert 2D coordinate to array index
+
+                    index = x + y*WIDTH
+                */
+                int index = screenX + screenY * WIDTH;
+
+                /*
+                    =================================================
+                    LIGHTING CALCULATION
+                    =================================================
+
+                    L -> luminance
+
+                    Dot product between:
+                        surface normal
+                        light direction
+
+                    Positive:
+                        facing light
+
+                    Negative:
+                        facing away
+                */
+                float L =
+                    cosPhi * cosTheta * sinB - cosA * cosTheta * sinPhi - sinA * sinTheta + cosB * (cosA * sinTheta - cosTheta * sinA * sinPhi);
+
+                /*
+                    Draw only illuminated surfaces
+                */
+                if (L > 0)
                 {
-                    // screen[screenX + screenY * WIDTH] = '@';
-                    int index = screenX + screenY * WIDTH;
-
-                    // depth test
-                    if (ooz > zbuffer[index])
+                    /*
+                        Bounds check
+                    */
+                    if (screenX >= 0 &&
+                        screenX < WIDTH &&
+                        screenY >= 0 &&
+                        screenY < HEIGHT)
                     {
-                        zbuffer[index] = ooz;
-                        // calculate brightness with surface normal
-                        float normalX = cos(theta) * cos(phi);
-                        float normalY = sin(theta);
-                        float normalZ = cos(theta) * sin(phi);
+                        /*
+                            =================================================
+                            Z-BUFFER TEST
+                            =================================================
 
-                        // light direction
-                        float lightX = 0;
-                        float lightY = 1;
-                        float lightZ = -1;
-
-                        // dot product
-                        float brightness =
-                            normalX * lightX +
-                            normalY * lightY +
-                            normalZ * lightZ;
-
-                        if (brightness > 0)
+                            Draw only if point is closer
+                        */
+                        if (ooz > zbuffer[index])
                         {
-                            int shadeIndex = brightness * 8;
-                            screen[index] = shades[shadeIndex];
+                            /*
+                                Update depth
+                            */
+                            zbuffer[index] = ooz;
+
+                            /*
+                                Convert brightness to ASCII index
+                            */
+                            int luminanceIndex = L * 8;
+
+                            /*
+                                Draw ASCII character
+                            */
+                            screen[index] =
+                                shades[luminanceIndex];
                         }
                     }
                 }
             }
         }
 
-        // clear terminal
+        /*
+            Move terminal cursor to top-left
+        */
         printf("\x1b[H");
 
-        // print screen
+        /*
+            Print frame
+        */
         for (int i = 0; i < WIDTH * HEIGHT; i++)
         {
-            putchar(screen[i]);
-
-            if ((i + 1) % WIDTH == 0)
-            {
-                putchar('\n');
-            }
+            putchar(i % WIDTH ? screen[i] : '\n');
         }
-        // increase rotation
-        A += 0.04;
 
-        // controls animation speed.
+        /*
+            Animate rotation
+        */
+        A += 0.04;
+        B += 0.02;
+
+        /*
+            Frame delay
+        */
         usleep(30000);
     }
+
     return 0;
 }
