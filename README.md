@@ -1,0 +1,13 @@
+### Rotating different object with ASCII chars.
+
+#### Build the donut exactly like a tiny 3D engine.
+
+* Step 1 -> screen buffer
+* Step 2 -> draw a point
+* Step 3 -> draw a circle
+* Step 4 -> create donut points
+* Step 5 -> projection
+* Step 6 -> rotation
+* Step 7 -> depth buffer
+* Step 8 -> lighting
+* Step 9 -> animation
