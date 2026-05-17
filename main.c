@@ -1,10 +1,3 @@
-#define _USE_MATH_DEFINES
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-
 /*
 Step 1 -> screen buffer
     - Need memory that represents the terminal screen.
@@ -25,12 +18,23 @@ Step 3 -> draw a circle
     - shift the circle to screen center. Terminal coordinates: (0,0) start at TOP LEFT.
     - Formula for Circle coordinates : x = centerX + r*cos(θ), y = centerY +r*sin(θ)
 Step 4 -> create donut points
+    - Small circle : This creates the tube thickness.
+    - Large circle : The small circle travels around this path
+    - theta(θ) : around tube , phi(ϕ) : around whole donut
+    - Rotate around center : x=(R2+R1*cos(θ))cos(ϕ) ; y=(R2+R1*cos(θ))sin(ϕ)
+    - Before drawing, ALWAYS check bounds.
 Step 5 -> projection
 Step 6 -> rotation
 Step 7 -> depth buffer
 Step 8 -> lighting
 Step 9 -> animation
 */
+
+#define _USE_MATH_DEFINES
+
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 #define WIDTH 80
 #define HEIGHT 22
@@ -39,32 +43,41 @@ char screen[WIDTH * HEIGHT];
 
 int main()
 {
-    // fill screen with spaces, so terminal becomes blank.
     memset(screen, ' ', WIDTH * HEIGHT);
 
-    // circle parameters
     int centerX = WIDTH / 2;
     int centerY = HEIGHT / 2;
 
-    int radius = 8;
+    float R1 = 4;  // tube radius
+    float R2 = 10; // donut radius
 
-    // move around circle
-    for (float theta = 0; theta < 2 * M_PI; theta += 0.05)
+    for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
     {
-        int x = centerX + radius * cos(theta);
-        int y = centerY + radius * sin(theta);
+        for (float phi = 0; phi < 2 * M_PI; phi += 0.1)
+        {
+            float x = (R2 + R1 * cos(theta)) * cos(phi);
+            float y = (R2 + R1 * cos(theta)) * sin(phi);
 
-        screen[x + y * WIDTH] = '@';
+            int screenX = centerX + x;
+            int screenY = centerY + y;
+
+            if (screenX >= 0 && screenX < WIDTH && screenY >= 0 && screenY < HEIGHT)
+            {
+                screen[screenX + screenY * WIDTH] = '@';
+            }
+        }
     }
 
-    // print characters on screen
+    // print screen
     for (int i = 0; i < WIDTH * HEIGHT; i++)
     {
         putchar(screen[i]);
+
         if ((i + 1) % WIDTH == 0)
         {
             putchar('\n');
         }
     }
+
     return 0;
 }
