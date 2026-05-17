@@ -16,14 +16,26 @@ Step 3 -> draw a circle
     - scale the circle by multiplying the radius (r) to the cos() and sin() values.
     - x = radius * cos(theta); y = radius * sin(theta);
     - shift the circle to screen center. Terminal coordinates: (0,0) start at TOP LEFT.
-    - Formula for Circle coordinates : x = centerX + r*cos(θ), y = centerY +r*sin(θ)
+    - Formula for Circle coordinates :
+    - x = centerX + r*cos(θ)
+    - y = centerY +r*sin(θ)
 Step 4 -> create donut points
     - Small circle : This creates the tube thickness.
     - Large circle : The small circle travels around this path
     - theta(θ) : around tube , phi(ϕ) : around whole donut
     - Rotate around center : x=(R2+R1*cos(θ))cos(ϕ) ; y=(R2+R1*cos(θ))sin(ϕ)
     - Before drawing, ALWAYS check bounds.
-Step 5 -> projection
+Step 5 -> projection (3D point → 2D screen point)
+    - Real-life perspective : Things far away appear smaller.
+    - The simplest projection formula:
+    - screenX = z/x
+    - screenY = z/y
+    - If: z = 0 ;program crashes. So move object away from camera.
+    - Move donut forward -> add: z += 20; Now donut is always in front of camera.
+    - K1 = zoom factor
+    - screenX = centerX + K1(z/x)
+    - screenY = centerY + K1(z/y)
+    - ooz = one over z = 1/z
 Step 6 -> rotation
 Step 7 -> depth buffer
 Step 8 -> lighting
@@ -51,17 +63,29 @@ int main()
     float R1 = 4;  // tube radius
     float R2 = 10; // donut radius
 
+    float K1 = 30;
+
     for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
     {
         for (float phi = 0; phi < 2 * M_PI; phi += 0.1)
         {
+            // donut point in 3D
             float x = (R2 + R1 * cos(theta)) * cos(phi);
-            float y = (R2 + R1 * cos(theta)) * sin(phi);
+            float y = R1 * sin(theta);
+            float z = (R2 + R1 * cos(theta)) * sin(phi);
 
-            int screenX = centerX + x;
-            int screenY = centerY + y;
+            // move donut away from camera
+            z += 20;
 
-            if (screenX >= 0 && screenX < WIDTH && screenY >= 0 && screenY < HEIGHT)
+            // perspective projection
+            float ooz = 1 / z;
+
+            // screenX = centerX + K1(z/x)
+            int screenX = centerX + K1 * ooz * x;
+            int screenY = centerY + K1 * ooz * y;
+
+            if (screenX >= 0 && screenX < WIDTH &&
+                screenY >= 0 && screenY < HEIGHT)
             {
                 screen[screenX + screenY * WIDTH] = '@';
             }
