@@ -48,6 +48,37 @@ Step 6 -> depth buffer
     - ooz = 1 / z -> Closer objects: large ooz ; Far objects: small ooz ; So: BIGGER ooz = closer
     - (Depth test) Z-buffer rule -> If: ooz > zbuffer[pixel] ? then: new point is closer, So update the pixel.
 Step 7 -> lighting
+    - Lighting and ASCII Shading
+    - Real 3D graphics use: light direction and surface direction, to determine brightness.
+    - If a surface faces the light: bright ; If it faces away: dark
+    - ASCII brightness Trick: Instead of real pixels/colors, use characters.
+    - Dark → Bright: ".,-~:;=!*#$@"
+    - Surface normals : Every surface has a direction. Called: normal vector ; Think: which way surface is facing
+    - Facing light ;LIGHT ---> [surface] : bright.
+    - Facing away ;[surface] <--- LIGHT : dark.
+    - Measuring brightness : use dot product ; Simple meaning: how aligned two directions are.
+    - Dot product result
+        +----------+--------------+
+        |  Result  |    Meaning   |
+        +----------+--------------+
+        | positive | facing light |
+        +----------+--------------+
+        | zero     | sideways     |
+        +----------+--------------+
+        | negative | facing away  |
+        +----------+--------------+
+    - In donut.c , N = calculates brightness. Then: ".,-~:;=!*#$@"[N] , selects the character.
+    - Brightness depends on theta, just to understand shading.
+    - This works : sin(theta)
+        - returns:
+            - -1 → +1
+            - add 1 : 0 → 2
+            - multiply by 5 : 0 → 10
+            - now get indexes into: ".,-~:;=!*#$@"
+    - Simple mental model :
+        - Surface directly facing light -> brightness = high
+        - Surface sideways -> brightness = medium
+        - Surface facing away -> brightness = dark
 Step 8 -> rotation
 Step 9 -> animation
 */
@@ -76,6 +107,8 @@ int main()
     float R2 = 10; // donut radius
 
     float K1 = 30;
+
+    char shades[] = ".,-~:;=!*#$@";
 
     for (float theta = 0; theta < 2 * M_PI; theta += 0.1)
     {
@@ -107,7 +140,12 @@ int main()
                 if (ooz > zbuffer[index])
                 {
                     zbuffer[index] = ooz;
-                    screen[index] = '@';
+
+                    // fake brightness
+                    int brightness = (sin(theta) + 1) * 5;
+                    screen[index] = shades[brightness];
+
+                    // for Real lighting uses : surface normal * light vector
                 }
             }
         }
