@@ -36,9 +36,19 @@ Step 5 -> projection (3D point → 2D screen point)
     - screenX = centerX + K1(z/x)
     - screenY = centerY + K1(z/y)
     - ooz = one over z = 1/z
-Step 6 -> rotation
-Step 7 -> depth buffer
-Step 8 -> lighting
+Step 6 -> depth buffer
+    - Currently: far points can overwrite near points
+    - A z-buffer stores : which point is closest to the camera for every screen pixel.
+    - Current problem : Right now, screen[index] = '@', always overwrites. So draw order matters.
+    - Need hidden surface removal; Is this point closer than previous point? If YES: draw it; If NO: ignore it
+    - Create depth buffer : float zbuffer[WIDTH * HEIGHT];
+    - For every screen pixel:
+        - screen[]  -> character
+        - zbuffer[] -> depth
+    - ooz = 1 / z -> Closer objects: large ooz ; Far objects: small ooz ; So: BIGGER ooz = closer
+    - (Depth test) Z-buffer rule -> If: ooz > zbuffer[pixel] ? then: new point is closer, So update the pixel.
+Step 7 -> lighting
+Step 8 -> rotation
 Step 9 -> animation
 */
 
@@ -52,10 +62,12 @@ Step 9 -> animation
 #define HEIGHT 22
 
 char screen[WIDTH * HEIGHT];
+float zbuffer[WIDTH * HEIGHT];
 
 int main()
 {
     memset(screen, ' ', WIDTH * HEIGHT);
+    memset(zbuffer, 0, sizeof(zbuffer));
 
     int centerX = WIDTH / 2;
     int centerY = HEIGHT / 2;
@@ -84,10 +96,19 @@ int main()
             int screenX = centerX + K1 * ooz * x;
             int screenY = centerY + K1 * ooz * y;
 
+            // bounds check
             if (screenX >= 0 && screenX < WIDTH &&
                 screenY >= 0 && screenY < HEIGHT)
             {
-                screen[screenX + screenY * WIDTH] = '@';
+                // screen[screenX + screenY * WIDTH] = '@';
+                int index = screenX + screenY * WIDTH;
+
+                // depth test
+                if (ooz > zbuffer[index])
+                {
+                    zbuffer[index] = ooz;
+                    screen[index] = '@';
+                }
             }
         }
     }
